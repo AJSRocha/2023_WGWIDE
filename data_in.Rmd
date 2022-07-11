@@ -16,8 +16,7 @@ library(openxlsx)
 ```
 
 ```{r connection}
-con = dbConnect(MySQL(),user='pnab-consulta',password='20!pnAb',
-                dbname='pnab',host='192.168.150.105')
+source('con_nautilus.R')
 ```
 
 ```{r}
