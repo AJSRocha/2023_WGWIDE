@@ -15,73 +15,76 @@ output: html_notebook
 ```{r}
 library(dplyr)
 library(ggplot2)
-load("C:/repos/2021_WGWIDE/data/data.RData")
-portos_slv <- read.csv("data/codigos_portos.csv")
+load("data/data.RData")
+portos_slv =  read.csv("Z:\\PNAB\\portos_slv/codigos_portos.csv")
+ano = 2021
 ```
 
 # Carregar os dados
 
 ```{r}
 head(gux_all_am2)
-df = gux_2020_cmp
+df = gux_2021_cmp
 ```
 
 # Carregar dados para regressao W ~ L
 
 ```{r}
 #regressao wL segundo df biologicas da Diana
-gur.bio<- read.table ("data/AmBio_GUR.csv", header=T, sep=";", dec=".")
-gur.bio<-gur.bio[!is.na(gur.bio$Wt),]
-gur.nls<-nls(.001*Wt~a*Lt^b,data=gur.bio,start=c(a= 0.0001, b=3 ))#peso corrigido para kg
+gur.bio = read.table ("data/AmBio_GUR.csv", header=T, sep=";", dec=".")
+gur.bio = gur.bio[!is.na(gur.bio$Wt),]
+gur.nls = nls(.001*Wt ~ a*Lt^b,
+              data=gur.bio,
+              start=c(a= 0.0001, b=3 ))#peso corrigido para kg
 
-a<-coef(gur.nls)[1]
-b<-coef(gur.nls)[2]
+a = coef(gur.nls)[1]
+b = coef(gur.nls)[2]
 ```
 
 # Limpeza / preproc
 
 ```{r}
 #id
-df$id_viagem <- factor(df$id_viagem)
-df$id_venda <- factor(df$id_venda)
-df$id_denominacao <- factor(df$id_denominacao)
-df$id_caixa <- factor(df$id_caixa)
-df$id_spp <- factor(df$id_spp)
-df$id_comp <- factor(df$id_comp)
+df$id_viagem = factor(df$id_viagem)
+df$id_venda = factor(df$id_venda)
+df$id_denominacao = factor(df$id_denominacao)
+df$id_caixa = factor(df$id_caixa)
+df$id_spp = factor(df$id_spp)
+df$id_comp = factor(df$id_comp)
 #regionais
-df$lota <- plyr::mapvalues(df$codporto,from=portos_slv$PORTO_SLV,to=as.character(portos_slv$PORTO_NOME)) %>% factor
+df$lota = plyr::mapvalues(df$codporto,from=portos_slv$PORTO_SLV,to=as.character(portos_slv$PORTO_NOME)) %>% factor
 #ordenar portos
-cobaia <- unique(df[,c("lota","codporto")])
-df$lota <- factor(df$lota, levels = cobaia$lota[order( as.integer(as.character(cobaia$codporto)))], ordered=TRUE)
+cobaia = unique(df[,c("lota","codporto")])
+df$lota = factor(df$lota, levels = cobaia$lota[order( as.integer(as.character(cobaia$codporto)))], ordered=TRUE)
 rm(cobaia)
 #limpar resto dos formatos
-df$cod_fao_venda<-factor(df$cod_fao_venda)
-df$cod_fao<-factor(df$cod_fao)
-df$data_fin<-as.POSIXct(df$data_fin,format="%Y-%m-%d")
-df$data_venda<-as.POSIXct(df$data_venda,format="%Y-%m-%d")
-df$esp_slv<-factor(df$esp_slv)
-df$mes<-factor(df$mes)
-df$ano<-factor(df$ano)
+df$cod_fao_venda = factor(df$cod_fao_venda)
+df$cod_fao = factor(df$cod_fao)
+df$data_fin = as.POSIXct(df$data_fin,format="%Y-%m-%d")
+df$data_venda = as.POSIXct(df$data_venda,format="%Y-%m-%d")
+df$esp_slv = factor(df$esp_slv)
+df$mes = factor(df$mes)
+df$ano = factor(df$ano)
 ```
 
 # Folha amarela
 
 ```{r}
-df$arte_eu<-factor(df$arte_eu)
-levels(df$arte_eu)[grepl("OTB",levels(df$arte_eu))]<-"OTB"
-levels(df$arte_eu)[grepl("PS",levels(df$arte_eu))]<-"PS"
-levels(df$arte_eu)[!levels(df$arte_eu)%in%c("OTB","PS")]<-"MIS_MIS"
+df$arte_eu = factor(df$arte_eu)
+levels(df$arte_eu)[grepl("OTB",levels(df$arte_eu))] = "OTB"
+levels(df$arte_eu)[grepl("PS",levels(df$arte_eu))] = "PS"
+levels(df$arte_eu)[!levels(df$arte_eu)%in%c("OTB","PS")] = "MIS_MIS"
 
-df$zona <- factor(df$zona, levels=c("NW","SW","Sul"), ordered=T)
-levels(df$zona)[grepl("Sul",levels(df$zona))]<-"S"
+df$zona = factor(df$zona, levels=c("NW","SW","Sul"), ordered = T)
+levels(df$zona)[grepl("Sul",levels(df$zona))] = "S"
 
-df$quarter<-"01"
-df[df$mes%in%c(4,5,6),"quarter"]<-"02"
-df[df$mes%in%c(7,8,9),"quarter"]<-"03"
-df[df$mes%in%c(10,11,12),"quarter"]<-"04"
+df$quarter = "01"
+df[df$mes%in%c(4,5,6),"quarter"] = "02"
+df[df$mes%in%c(7,8,9),"quarter"] = "03"
+df[df$mes%in%c(10,11,12),"quarter"] = "04"
 
 #extrapolar numero de individuos
-df[is.na(df$n_nao_observados_tot),"n_nao_observados_tot"]<-
+df[is.na(df$n_nao_observados_tot),"n_nao_observados_tot"] = 
   df[is.na(df$n_nao_observados_tot),"n_nao_observados"]*
   df[is.na(df$n_nao_observados_tot),"peso_total_spp"]/
   df[is.na(df$n_nao_observados_tot),"peso_am_spp"]
@@ -89,9 +92,9 @@ df[is.na(df$n_nao_observados_tot),"n_nao_observados_tot"]<-
 #View(df[is.na(df$peso_tot_spp),])
 
 #df para folha amarela
-folha_amarela<-
+folha_amarela =
 df %>% 
-  filter(cod_fao=="GUR") %>%
+  filter(cod_fao == "GUR") %>%
   group_by(arte_eu,quarter,classe_comp+0.5) %>%
   summarise(
             n=sum(trunc(n_nao_observados))/1000)
@@ -112,9 +115,10 @@ unique(df[,c("id_viagem","id_caixa","cod_fao","peso_am_spp","arte_eu","quarter")
 # Output
 
 folha_amarela_exp = data.frame(); l = 0
+
 for(i in unique(folha_amarela$arte_eu)){
   for(j in unique(folha_amarela$quarter)){
-    temp = folha_amarela %>% filter(arte_eu == i & quarter ==j)
+    temp = folha_amarela %>% filter(arte_eu == i & quarter == j)
     
     # cria as linhas necessarias
     classes = c()
