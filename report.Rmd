@@ -11,6 +11,24 @@ output: html_notebook
 * gux_land.csv: desembarques de GUX tirados da base de dados antiga através no AquaStudio. Original + query está no drive (*dados_pnab*)
 * fleet_frg2: ficheiro auxiliar para as queries do bernardo; original esta no drive (*Ruivices*)
 
+# Inputs:
+
+* Tirados com o *data_in.Rmd*;
+* 3 objectos:
+  * gux_2021_cmp já tem dados restritos aos gux
+  * gux_all_am tem as viagens completas, para além das amostras de triglas; é util para trabalhos de bycatch como os da tese;
+  * gux_all_am2 é a tabela anterior cruzada com a lista de estratos do pnab. Por algum motivo miserável, o cruzamento nao é perfeito e há duplicação de algumas linhas.
+  
+# Metodologia 2022
+
+* Conversor automatico para formato em intercatch de 2021 **NAO FUNCIONAVA**;
+* Folha amarela foi preenchida manualmente com os objectos criados neste script;
+* Folha amarela foi passada pelo IC Filemaker e o output resultante foi usado para validar o resultado do conversor
+* Notas sobre o conversor:
+
+  * A sequência de 3 numeros inteiros corresponde a numero de amostras - numero de individuos amostrados - numero de amostras. **Investigar o Porquê dessa repetição**
+  * O peso amostrado (comum a todas as linhas de classe de comprimento) é obtido por soma dos pesos amostrados e **NÃO** através do peso modelado da classse $x$ numero de individuos, como estava implicito em versoes anteriores do script;
+  * Existe uma versão antiga (a mais recente do repo de 2021) que tentava entrar com valores de desembarques; esse código foi removido uma vez que para este WG foi decidido nao reportar desembarques;
 
 ```{r}
 library(dplyr)
@@ -69,7 +87,10 @@ df$ano = factor(df$ano)
 
 # Folha amarela
 
+# acrescentar, por esta ordem, nr samples, nr measured, nr samples
+
 ```{r}
+
 df$arte_eu = factor(df$arte_eu)
 levels(df$arte_eu)[grepl("OTB",levels(df$arte_eu))] = "OTB"
 levels(df$arte_eu)[grepl("PS",levels(df$arte_eu))] = "PS"
@@ -99,7 +120,7 @@ df %>%
   summarise(
             n=sum(trunc(n_nao_observados))/1000)
 
-folha_amarela$w_mean=a*(folha_amarela$`classe_comp + 0.5`^b)
+folha_amarela$w_mean = a*(folha_amarela$`classe_comp + 0.5`^b)
 
 #numero de amostras e peso amostrado
 sumario = 
@@ -108,12 +129,25 @@ unique(df[,c("id_viagem","id_caixa","cod_fao","peso_am_spp","arte_eu","quarter")
   group_by(arte_eu,quarter) %>%
   summarise(
             samples=length(unique(id_viagem)),
-            w_samples=sum(peso_am_spp)/1000)
+            w_samples=sum(peso_am_spp)/1000) %>% 
+  left_join(.,
+            (folha_amarela %>%
+  group_by(arte_eu, quarter) %>%
+  summarise(n_measured = sum(n) * 1000)),
+            by = c('arte_eu', 'quarter'))
+  
 
+  
 
+folha_amarela %>%
+  group_by(arte_eu, quarter) %>%
+  summarise(n_measured = sum(n) * 1000)
+
+```
 
 # Output
 
+```{r}
 folha_amarela_exp = data.frame(); l = 0
 
 for(i in unique(folha_amarela$arte_eu)){
@@ -124,17 +158,21 @@ for(i in unique(folha_amarela$arte_eu)){
     classes = c()
     for(k in 1:nrow(temp)){
       classes[k] = paste('\n',
-                         'SD,PT,',ano,'Quarter,',temp$quarter[k],
+                         'SD,PT,',ano,',Quarter,',substr(temp$quarter[k],2,2),
                          ',',temp$arte_eu[k],
-                         'Div,27.9.a,NA,GUR,NA,L,R,N,lngt,',
-                         temp$`classe_comp + 0.5`-0.5,
-                         ifelse(temp$arte_eu=='OTB', 45, 44),
-                         sum(temp$n * temp$w_mean),
-                         
-                         
-                         
-                         
-                         temp$`classe_comp + 0.5`[k], sep = '')
+                         ',Div,27.9.a,NA,GUR,NA,L,R,N,lngt,',
+                         temp$`classe_comp + 0.5`[k]-0.5,',',
+                         ifelse(temp$arte_eu[k] =='OTB', 45, 44), ',',
+                         sumario[sumario$arte_eu == i & sumario$quarter == j,]$w_samples,',',
+                         sumario[sumario$arte_eu == i & sumario$quarter == j,]$samples, ',',
+                         sumario[sumario$arte_eu == i & sumario$quarter == j,]$n_measured, ',',
+                         sumario[sumario$arte_eu == i & sumario$quarter == j,]$samples, ',',
+                         '-9,kg,k,cm,cm,NA,',
+                         temp$n[k], ',',
+                         temp$w_mean[k], ',',
+                         temp$`classe_comp + 0.5`[k],',',
+                         '-9,-9,-9',
+                         sep = '')
     }
     classes = paste(classes, collapse = '', sep = '')
     # linha cabeçalho arte e quarter
@@ -165,146 +203,11 @@ for(i in unique(folha_amarela$arte_eu)){
 }}
 
 write.table(folha_amarela_exp,
-            file=paste("IC",ano+1,"27_9a_PT_landings_length.dat",sep="_")
+            file=paste("outputs/IC",ano+1,"27_9a_PT_landings_length.dat",sep="_")
             ,sep="",row.names = F,col.names = F,quote=F)
-
-
-#do.call(paste, list(1,2,3, sep =","))
-
-i
-j
-temp = folha_amarela %>% filter(arte_eu == i & quarter ==j)
-classes = c()
-    for(k in 1:nrow(temp)){
-      classes[k] = paste0(temp$`classe_comp + 0.5`[k],"\n",sep = "")
-      }
-    # 
-
-
-
-
-
-
-
 ```
 
-
-HI,PT,2020,Quarter,1,OTB,Div,27.9.a,NA,NA,-9,NA
-SI,PT,2020,Quarter,1,OTB,Div,27.9.a,NA,GUR,NA,L,R,NA,H,U,NA,t,-9,-9,-9,,due to unsorted mixed landings of gurnards no ampliation was performed,
-SD,PT,2020,Quarter,1,OTB,Div,27.9.a,NA,GUR,NA,L,R,N,lngt,20,45,0.018257,11,87,11,-9,kg,k,cm,cm,NA,0.002,0.0830284147778176,20.5,-9,-9,-9
-
-
-# Desembarque
-
-```{r}
-
-# Importa dados
-land <- read.csv("data/gux_land.csv",
-               sep=",",dec=".")
-
-# Bernardo tirava sempre estes
-land = land %>%
-  filter(ARTE_EU != 'SP_POLYVALENT')
-
-
-#acrescenta portos slv
-land =   merge(land,
-               portos_slv[,c("PORTO_SLV","PORTO_NOME","REGIAO_1")],
-              all.x=T,
-              all.y=F,
-              by="PORTO_SLV")
-
-#restringe desembarques a codigos fao tirados do ASFIS
-
-fao = c("GUR")
-ano = 2020
-
-land = land[land$COD_FAO %in% fao & 
-              land$ANO == ano,]
-
-land$Quarter<-1
-land[land$MES%in%c("4","5","6"),"Quarter"]<-2
-land[land$MES%in%c("7","8","9"),"Quarter"]<-3
-land[land$MES%in%c("10","11","12"),"Quarter"]<-4
-
-#sem separaçao a zona
-land.total<-aggregate(DESEMBARQUE/1000 ~ COD_FAO + Quarter + ARTE_EU,
-                      data = land,
-                      FUN = sum,
-                      na.rm=T)
-
-land.export = 
-  aggregate(DESEMBARQUE/1000 ~ COD_FAO + Quarter + ARTE_EU + REGIAO_1,
-            data = land,
-            FUN = sum,
-            na.rm = T)
-
-land.export$REGIAO_1<-factor(land.export$REGIAO_1)
-
-levels(land.export$REGIAO_1) = c("27.9.a.c.n",
-                                 "27.9.a.s.a",
-                                 "27.9.a.c.s")
-# levels(land.export$REGIAO_1)<-c("OTH","OTH","OTH","27.9.a.c.n","27.9.a.c.s","27.9.a.c.a")
-land.export = land.export[land.export$REGIAO_1!="OTH",]
-
-#save(land,file="data//desemb_quarter_2020.Rdata")
-
-#Acerta niveis com formato intercatch
-land.export$ARTE = factor(land.export$ARTE)
-levels(land.export$ARTE) = c("OTB",
-                             "MIS_MIS_0_0_0",
-                             "PS_SPF_0_0_0")
-
-
-
-
-
-
-
-for(j in unique(land.export$COD_FAO)){
-teste = data.frame()
-occ = land.export[land.export$COD_FAO==j,]
-for(i in 1:nrow(occ)){
-  paste("HI,","PT,",ano,",","Quarter,",
-        occ$Quarter[i],",",
-        occ$ARTE[i],",",
-        "AreaUnit,",
-        occ$REGIAO_1[i],",",
-        "NA,","NA,","-9,","NA",
-        "\n",
-        "SI,","PT,",ano,",","Quarter,",
-        occ$Quarter[i],",",
-        occ$ARTE[i],",",
-        "AreaUnit,",
-        occ$REGIAO_1[i],",",
-        "NA,",
-        occ$COD_FAO[i],",",
-        "NA,","L,","R,","NA,","H,","U,","NA,","t,",
-        occ$QESTIMADA[i]/1000,",",
-        occ$QESTIMADA[i]/1000,",",
-        "-9,",",,",
-        sep="")->teste[i,1]
-}
-write.table(teste,
-            file=paste("IC",ano,j,"27_9a_PT_landings_length.dat",sep="_")
-            ,sep="",row.names = F,col.names = F,quote=F)
-}
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# QCAs e testes diversos
 
 ```{r}
 df %>%
