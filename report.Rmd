@@ -5,58 +5,47 @@ output: html_notebook
 
 # Fontes:
 
-* data: criado com o notebook *data_int*, que corre queries directamente no nautilus
-* codigo_portos.csv: ficheiro original está no drive (*dados_pnab*)
-* Ambio_GUR.csv: ficheiro de amostragens biologicas da Diana, original esta na pasta do *WGWIDE2019* no drive
-* gux_land.csv: desembarques de GUX tirados da base de dados antiga através no AquaStudio. Original + query está no drive (*dados_pnab*)
-* fleet_frg2: ficheiro auxiliar para as queries do bernardo; original esta no drive (*Ruivices*)
+-   data: criado com o notebook *data_int*, que corre queries directamente no nautilus
+-   codigo_portos.csv: ficheiro original está no drive (*dados_pnab*)
+-   Ambio_GUR.csv: ficheiro de amostragens biologicas da Diana, original esta na pasta do *WGWIDE2019* no drive
+-   gux_land.csv: desembarques de GUX tirados da base de dados antiga através no AquaStudio. Original + query está no drive (*dados_pnab*)
+-   fleet_frg2: ficheiro auxiliar para as queries do bernardo; original esta no drive (*Ruivices*)
 
 # Inputs:
 
-* Tirados com o *data_in.Rmd*;
-* 3 objectos:
-  * gux_2021_cmp já tem dados restritos aos gux
-  * gux_all_am tem as viagens completas, para além das amostras de triglas; é util para trabalhos de bycatch como os da tese;
-  * gux_all_am2 é a tabela anterior cruzada com a lista de estratos do pnab. Por algum motivo miserável, o cruzamento nao é perfeito e há duplicação de algumas linhas.
-  
-# Metodologia 2022
+-   Tirados com o *data_in.Rmd*;
+-   3 objectos:
+    -   gux_2021_cmp já tem dados restritos aos gux
+    -   gux_all_am tem as viagens completas, para além das amostras de triglas; é util para trabalhos de bycatch como os da tese;
+    -   gux_all_am2 é a tabela anterior cruzada com a lista de estratos do pnab. Por algum motivo miserável, o cruzamento nao é perfeito e há duplicação de algumas linhas.
 
-* Conversor automatico para formato em intercatch de 2021 **NAO FUNCIONAVA**;
-* Folha amarela foi preenchida manualmente com os objectos criados neste script;
-* Folha amarela foi passada pelo IC Filemaker e o output resultante foi usado para validar o resultado do conversor
-* Notas sobre o conversor:
+# Metodologia 2023
 
-  * A sequência de 3 numeros inteiros corresponde a numero de amostras - numero de individuos amostrados - numero de amostras. **Investigar o Porquê dessa repetição**
-  * O peso amostrado (comum a todas as linhas de classe de comprimento) é obtido por soma dos pesos amostrados e **NÃO** através do peso modelado da classse $x$ numero de individuos, como estava implicito em versoes anteriores do script;
-  * Existe uma versão antiga (a mais recente do repo de 2021) que tentava entrar com valores de desembarques; esse código foi removido uma vez que para este WG foi decidido nao reportar desembarques;
+-   Conversor automatico para formato em intercatch de 2021 **NAO FUNCIONAVA**;
+
+-   Folha amarela foi preenchida manualmente com os objectos criados neste script;
+
+-   Folha amarela foi passada pelo IC Filemaker e o output resultante foi usado para validar o resultado do conversor
+
+-   Notas sobre o conversor:
+
+    -   A sequência de 3 numeros inteiros corresponde a numero de amostras - numero de individuos amostrados - numero de amostras. **Investigar o Porquê dessa repetição**
+    -   O peso amostrado (comum a todas as linhas de classe de comprimento) é obtido por soma dos pesos amostrados e **NÃO** através do peso modelado da classse $x$ numero de individuos, como estava implicito em versoes anteriores do script;
+    -   Existe uma versão antiga (a mais recente do repo de 2021) que tentava entrar com valores de desembarques; esse código foi removido uma vez que para este WG foi decidido nao reportar desembarques;
 
 ```{r}
 library(dplyr)
 library(ggplot2)
 load("data/data.RData")
 portos_slv =  read.csv("Z:\\PNAB\\portos_slv/codigos_portos.csv")
-ano = 2021
+ano = 2022
 ```
 
 # Carregar os dados
 
 ```{r}
 head(gux_all_am2)
-df = gux_2021_cmp
-```
-
-# Carregar dados para regressao W ~ L
-
-```{r}
-#regressao wL segundo df biologicas da Diana
-gur.bio = read.table ("data/AmBio_GUR.csv", header=T, sep=";", dec=".")
-gur.bio = gur.bio[!is.na(gur.bio$Wt),]
-gur.nls = nls(.001*Wt ~ a*Lt^b,
-              data=gur.bio,
-              start=c(a= 0.0001, b=3 ))#peso corrigido para kg
-
-a = coef(gur.nls)[1]
-b = coef(gur.nls)[2]
+df = gux_2022_cmp
 ```
 
 # Limpeza / preproc
@@ -83,6 +72,184 @@ df$data_venda = as.POSIXct(df$data_venda,format="%Y-%m-%d")
 df$esp_slv = factor(df$esp_slv)
 df$mes = factor(df$mes)
 df$ano = factor(df$ano)
+```
+
+# QCAs e testes diversos
+
+```{r}
+
+summary(df)
+
+df$peso_total_caixa %>% summary()
+df$peso_total_spp %>% summary()
+df$n_total_caixa %>% summary()
+df$n_nao_observados_tot %>% summary()
+
+```
+
+```{r}
+## COD FAO existentes:
+df$cod_fao %>% unique()
+
+## Lepidotriglas
+df[df$cod_fao == c("LDV", "LEP"),] %>% View()
+
+df[df$cod_fao == c("LDV", "LEP"),]$id_viagem %>% unique()
+
+dados_rever <- df[df$cod_fao == c("LDV", "LEP"),]
+# save(dados_rever, file = "data_problem.RData")
+
+## GUR
+df[df$cod_fao_venda == c("GUR"),]$cod_fao %>% unique()
+df[df$cod_fao_venda == c("GUR"),]$id_viagem %>% unique() %>% length()
+df[df$cod_fao_venda == c("GUR"),]$classe_comp %>%  summary()
+
+df[df$cod_fao_venda == c("GUR"),] %>% View()
+
+## GUR
+df[df$cod_fao == c("GUR"),]$cod_fao_venda %>% unique()
+df[df$cod_fao == c("GUR"),]$id_viagem %>% unique() %>% length()
+df[df$cod_fao == c("GUR"),]$classe_comp %>%  summary()
+
+df[df$cod_fao == c("GUR"),] %>% View()
+
+df[df$cod_fao == c("GUR"),]$classe_comp%>% summary()
+```
+
+
+```{r}
+
+df %>% filter(cod_fao=="GUR"& classe_comp > 40)
+
+#Figueira da Foz
+unique(df[df$lota=="FIGUEIRA DA FOZ","cod_fao_venda"])
+
+#todas estas viagens foram validadas tirando o manata, descrito abaixo
+##GUR
+df %>% filter(cod_fao=="GUR"& lota == "FIGUEIRA DA FOZ") %>% View
+
+##GUU
+df %>% filter(cod_fao=="GUU"& lota == "FIGUEIRA DA FOZ") %>% View
+
+##GUN
+df %>% filter(cod_fao=="GUN"& lota == "FIGUEIRA DA FOZ") %>% View
+
+#Matosinhos
+##LDV - Todos resolvidos
+df %>% filter(cod_fao=="LDV"& lota == "MATOSINHOS") %>% View
+
+#LEP?
+df %>% filter(cod_fao=="LEP") %>% View
+```
+
+# plots
+
+```{r}
+
+df[df$cod_fao == c("GUU"),] %>% 
+  ggplot() +
+  geom_bar(aes(x=classe_comp, y=n_nao_observados), stat = "identity") + 
+  facet_grid(mes~lota)
+
+df %>%
+  filter(cod_fao == 'GUR') %>%
+  group_by(lota, classe_comp) %>%
+  summarise(n = n_nao_observados) %>%
+  ggplot() + 
+  geom_histogram(stat = 'count',
+                 aes(x = classe_comp,
+                     fill = lota)) + 
+  theme_bw() + 
+  theme(legend.position = 'bottom')
+  facet_wrap(lota ~.) 
+
+```
+
+```{r}
+
+i = "GUR"
+
+df[df$cod_fao == i,] %>% 
+  ggplot() +
+  geom_bar(aes(x=classe_comp, y=n_nao_observados), stat = "identity") + 
+  facet_grid(mes~lota)
+
+```
+
+# denom vs spp am
+
+```{r}
+
+df$cod_fao_venda %>% unique()
+#  [1] GUR LEP LDV HKE GUU     WRA ANN CTB BRB MUR
+# Levels:  ANN BRB CTB GUR GUU HKE LDV LEP MUR WRA
+
+i = "GUR"
+
+df %>%
+  filter(cod_fao_venda == i) %>%
+  group_by(lota, classe_comp, cod_fao) %>%
+  summarise(n = n_nao_observados) %>%
+  ggplot() + 
+  ggtitle(paste0("cod_fao_venda = ", i)) +
+  geom_histogram(stat = 'count',
+                 aes(x = classe_comp,
+                     fill = cod_fao)) + 
+  facet_wrap(.~lota) +
+  theme_bw() + 
+  theme(legend.position = 'bottom')
+
+```
+
+# prop
+
+```{r}
+
+df$cod_fao_venda %>% unique()
+#  [1] GUR LEP LDV HKE GUU     WRA ANN CTB BRB MUR
+# Levels:  ANN BRB CTB GUR GUU HKE LDV LEP MUR WRA
+
+i = "GUR"
+
+df %>%
+  filter(cod_fao_venda == i) %>%
+  group_by(lota, classe_comp, cod_fao) %>%
+  summarise(n = n_nao_observados) %>%
+  ggplot() + 
+  ggtitle(paste0("cod_fao_venda = ", i)) +
+  geom_histogram(stat = 'count',
+                 aes(x = classe_comp,
+                     fill = cod_fao), position = "fill") + 
+  facet_wrap(.~lota) +
+  theme_bw() + 
+  theme(legend.position = 'bottom')
+
+```
+
+# desnecessario p 2022 
+
+```{r}
+df %>%
+  filter(lota == 'FIGUEIRA DA FOZ') %>%
+  filter(cod_fao == 'GUR') %>% 
+  View
+
+```
+
+
+
+# Carregar dados para regressao W \~ L
+
+```{r}
+#regressao wL segundo df biologicas da Diana
+gur.bio = read.table ("data/AmBio_GUR.csv", header=T, sep=";", dec=".")
+gur.bio = gur.bio[!is.na(gur.bio$Wt),]
+gur.nls = nls(.001*Wt ~ a*Lt^b,
+              data=gur.bio,
+              start=c(a= 0.0001, b=3 ))#peso corrigido para kg
+
+a = coef(gur.nls)[1]
+b = coef(gur.nls)[2]
 ```
 
 # Folha amarela
@@ -135,9 +302,6 @@ unique(df[,c("id_viagem","id_caixa","cod_fao","peso_am_spp","arte_eu","quarter")
   group_by(arte_eu, quarter) %>%
   summarise(n_measured = sum(n) * 1000)),
             by = c('arte_eu', 'quarter'))
-  
-
-  
 
 folha_amarela %>%
   group_by(arte_eu, quarter) %>%
@@ -169,7 +333,7 @@ for(i in unique(folha_amarela$arte_eu)){
                          sumario[sumario$arte_eu == i & sumario$quarter == j,]$samples, ',',
                          '-9,kg,k,cm,cm,NA,',
                          temp$n[k], ',',
-                         temp$w_mean[k], ',',
+                         temp$w_mean[k] %>% round(3), ',',
                          temp$`classe_comp + 0.5`[k],',',
                          '-9,-9,-9',
                          sep = '')
@@ -203,63 +367,9 @@ for(i in unique(folha_amarela$arte_eu)){
 }}
 
 write.table(folha_amarela_exp,
-            file=paste("outputs/IC",ano+1,"27_9a_PT_landings_length.dat",sep="_")
+            file=paste("outputs/IC",ano,"27_9a_PT_landings_length.dat",sep="_")
             ,sep="",row.names = F,col.names = F,quote=F)
 ```
-
-# QCAs e testes diversos
-
-```{r}
-df %>%
-  filter(cod_fao == 'GUR') %>%
-  group_by(lota, classe_comp) %>%
-  summarise(n = n_nao_observados) %>%
-  ggplot() + 
-  geom_histogram(stat = 'count',
-                 aes(x = classe_comp,
-                     fill = lota)) + 
-  theme_bw() + 
-  theme(legend.position = 'bottom')
-  facet_wrap(lota ~.) 
-
-
-```
-
-
-```{r}
-df %>%
-  filter(lota == 'FIGUEIRA DA FOZ') %>%
-  filter(cod_fao == 'GUR') %>% 
-  View
-
-
-
-  summarise(total = sum(n_nao_observados))
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

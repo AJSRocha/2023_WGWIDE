@@ -23,8 +23,14 @@ source('scripts/con_nautilus.R')
 fleet_frg2 = read.csv('data/fleet_frg2.csv')
 ```
 
+```{sql, connection = con, output.var = temp}
 
-```{sql,connection=con,output.var=gux_2021_cmp}
+select * from
+
+```
+
+
+```{sql,connection=con,output.var=gux_2022_cmp}
 
 select distinct p1.id id_viagem,
                 p2.id id_venda,
@@ -116,7 +122,7 @@ select distinct p1.id id_viagem,
            from pnab.viagem_regiao where regiao <> 5) and
                 p9.n_nao_observados is not null and 
                 p8.cod_fao in ('CTZ','GUG','GUM','GUN','GUR','GUU','GUX','LDV','LEP','GUY') and
-                p2.data between '2021-01-01' and '2021-12-31' 
+                p2.data between '2022-01-01' and '2022-12-31' 
        UNION ALL /*ver viagens sem metier*/
 select distinct p1.id id_viagem,
                 p2.id id_venda,
@@ -197,7 +203,7 @@ select distinct p1.id id_viagem,
           where regiao <> 5) and
                 p9.n_nao_observados is not null and 
                 p8.cod_fao in ('CTZ','GUG','GUM','GUN','GUR','GUU','GUX','LDV','LEP','GUY') and
-                p2.data between '2021-01-01' and '2021-12-31' and
+                p2.data between '2022-01-01' and '2022-12-31' and
                 p1.id not in(
 select distinct p1.id
            from pnab.viagem p1,
@@ -233,7 +239,7 @@ select distinct p1.id
            from pnab.viagem_regiao 
           where regiao <> 5) and
                 p8.cod_fao in  ('CTZ','GUG','GUM','GUN','GUR','GUU','GUX','LDV','LEP','GUY') and
-                p2.data between '2021-01-01' and '2021-12-31')
+                p2.data between '2022-01-01' and '2022-12-31')
 
 ```
 
@@ -331,7 +337,7 @@ select distinct p1.id id_viagem,
            from pnab.viagem_regiao 
           where regiao <> 5) and 
                 p9.n_nao_observados is not null and 
-                p2.data between '2017-01-01' and '2021-12-31' and 
+                p2.data between '2017-01-01' and '2022-12-31' and 
                 p1.id in(
 select distinct p1.id 
            from pnab.viagem p1,
@@ -362,7 +368,7 @@ select distinct p1.id
            from pnab.viagem_regiao 
           where regiao <> 5) and 
                 p8.cod_fao in ('CTZ','GUG','GUM','GUN','GUR','GUU','GUX','LDV','LEP','GUY') and
-                p2.data between '2017-01-01' and '2021-12-31'
+                p2.data between '2017-01-01' and '2022-12-31'
                            )
        UNION ALL
 select distinct p1.id id_viagem,
@@ -446,7 +452,7 @@ select distinct p1.id id_viagem,
            from pnab.viagem_regiao 
           where regiao <> 5) and 
                 p9.n_nao_observados is not null and 
-                p2.data between '2017-01-01' and '2021-12-31' and
+                p2.data between '2017-01-01' and '2022-12-31' and
 						    p1.id in (
 select distinct p1.id 
            from pnab.viagem p1,
@@ -474,7 +480,7 @@ select distinct p1.id
                 p1.id not in (select viagem id 
            from pnab.viagem_regiao where regiao <> 5) and 
                 p8.cod_fao in ('CTZ','GUG','GUM','GUN','GUR','GUU','GUX','LDV','LEP','GUY') and 
-                p2.data between '2017-01-01' and '2021-12-31'
+                p2.data between '2017-01-01' and '2022-12-31'
                            ) and 
                 p1.id not in (
 select distinct p1.id
@@ -511,7 +517,7 @@ select distinct p1.id
          select viagem id 
            from pnab.viagem_regiao 
           where regiao <> 5) and 
-                p2.data between '2017-01-01' and '2021-12-31'and 
+                p2.data between '2017-01-01' and '2022-12-31'and 
                 p1.id in (
 select distinct p1.id 
            from pnab.viagem p1,
@@ -541,7 +547,7 @@ select distinct p1.id
            from pnab.viagem_regiao 
           where regiao <> 5) and 
                 p8.cod_fao in ('CTZ','GUG','GUM','GUN','GUR','GUU','GUX','LDV','LEP','GUY') and 
-                p2.data between '2017-01-01' and '2021-12-31'
+                p2.data between '2017-01-01' and '2022-12-31'
                            )
                            )
 
@@ -549,7 +555,7 @@ select distinct p1.id
 
 ```{r}
 detach("package:RMySQL", unload=TRUE)
-
+options(sqldf.driver = "SQLite")
 gux_all_am2<-sqldf::sqldf("
 
 select distinct p1.id_viagem,
@@ -664,7 +670,7 @@ select distinct p1.id_viagem,
 ```
 
 ```{r}
-save(gux_2021_cmp, gux_all_am, gux_all_am2, file = 'data/data.Rdata')
+save(gux_2022_cmp, gux_all_am, gux_all_am2, file = 'data/data.Rdata')
 ```
 
 
